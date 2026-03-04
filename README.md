@@ -8,16 +8,47 @@ A C++ inference implementation of GPT-SoVITS for Japanese voice synthesis. This 
 - Utilizes ONNX models for optimal inference speed and cross-platform compatibility.
 - Integrated Japanese G2P (Grapheme-to-Phoneme) using OpenJTalk.
 
+## Hybrid Architecture (Python + C++)
+
+This project utilizes a **hybrid approach** to maintain audio quality identical to the original Python implementation:
+
+1. **Python**: Used exclusively to process the reference audio and extract generating style embeddings (`ssl_content`, `sv_embedding`, `global_emb`, etc.).
+2. **C++ (ONNXRuntime)**: Performs the heavy text-to-speech inference (Text to Semantic Tokens -> Vocoder) in real-time.
+
+*The model files required by this project can be downloaded from: [DDATT/GPTSoVits-ONNX-Cpp on Hugging Face](https://huggingface.co/DDATT/GPTSoVits-ONNX-Cpp)*
+
 ## Prerequisites
 
 Ensure you have the following dependencies installed before building the project:
 
+- **Python 3.x** (for generating embeddings)
 - **CMake** (3.10 or higher)
 - **C++17** compatible compiler (GCC, Clang, etc.)
 - **ONNXRuntime** (C++ API): can use pre-built binary from [ONNXRuntime](https://github.com/microsoft/onnxruntime) or build from source.
 - **openjtalk-native**: A native shared library for OpenJTalk. Please follow the instructions in the [openjtalk-native](https://github.com/ayutaz/openjtalk-native) repository to build and install it.
 
-## Build Instructions
+## Step 1: Generating Style Embeddings (Python)
+
+Before running the C++ application, you must use Python to generate the necessary embedding files from your reference audio.
+
+1. Navigate to the `assets` directory.
+2. We have provided `get_embedding_fp32_models.py` which demonstrates how the embeddings are extracted. 
+3. Modify the script to point to your `MODELS_DIR` and provide the target `audio_path`:
+   ```python
+   # Inside get_embedding_fp32_models.py
+   MODELS_DIR = "models_fp32"
+   audio_32k = load_audio(
+       audio_path="your_reference_audio.wav", 
+       target_sampling_rate=32000
+   )
+   ```
+4. Run the script:
+   ```bash
+   python get_embedding_fp32_models.py
+   ```
+5. This script will generate `.bin` files (`ssl_content.bin`, `sv_embedding.bin`, `global_emb.bin`, etc.) which act as the stylistic input for the C++ engine.
+
+## Step 2: Build the C++ Inference Engine
 
 1. Clone the repository and navigate to the project directory:
    ```bash
@@ -35,7 +66,7 @@ Ensure you have the following dependencies installed before building the project
 
 3. Upon successful compilation, the executable `vits` will be generated in the `build` directory.
 
-## Usage
+## Step 3: Running the C++ Inference
 
 You can use the compiled `vits` executable to synthesize audio. Below is the primary example of how the underlying C++ classes (`GPTSoVits` and `JapaneseG2P`) are utilized to generate a WAV file from Japanese text.
 
